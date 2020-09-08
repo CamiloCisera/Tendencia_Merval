@@ -1,0 +1,103 @@
+import pandas as pd
+import numpy as np
+import datetime as dt
+import matplotlib.pyplot as plt
+plt.style.use('seaborn-white')
+plt.rcParams['figure.figsize'] = [12,6]
+plt.rcParams["font.weight"] = "bold"
+plt.rcParams["axes.labelweight"] = "bold"
+plt.rcParams["font.size"] = 15
+
+Merval_total = pd.read_excel("/Users/cx/Downloads/merval_actualizado.xlsx",
+                             index_col=0)
+
+Merval_total["Media200"] = Merval_total["Merval_dlr"].rolling(200).mean()
+Merval_total["return"] = Merval_total["Merval_dlr"].pct_change()
+Merval_total.dropna(inplace=True)
+
+#Grafico
+plt.plot(Merval_total["Merval_dlr"].iloc[-250:], c="k", label="Merval en USD")
+plt.title("Merval USD - 250 últimas ruedas", fontweight="bold")
+plt.plot(Merval_total["Media200"].iloc[-250:], label="Media 200 ruedas", c="r",
+            ls="--", lw=0.9)
+
+plt.scatter(Merval_total["Merval_dlr"].iloc[-250:].idxmin(),
+            Merval_total["Merval_dlr"].iloc[-200:].min(),
+            color="r")
+plt.annotate("Inicio cuarentena en Arg",
+             weight ='bold', xy=(dt.date(2020,3,17), 255), xytext=(dt.date(2019,10,6), 345),
+             arrowprops=dict(arrowstyle="->", color="k"))
+plt.annotate("Entendimiento con bonistas",
+             weight ='bold', xy=(dt.date(2020,8,3), 425), xytext=(dt.date(2020,5,6), 600),
+             arrowprops=dict(arrowstyle="->", color="k"))
+plt.xlabel("Fecha")
+plt.ylabel("U$S")
+plt.legend()
+plt.show()
+
+#==============================================================================
+# Estrategia con venta en el momento exacto en que cruza la media
+#==============================================================================
+strategy_return = []
+signal = "out"
+operaciones = 0
+for i in range(len(Merval_total)):
+    if signal == "out":
+        strategy_return.append(0)
+        if Merval_total["Merval_dlr"][i] >= Merval_total["Media200"][i]:
+            signal = "in"
+            print(f'Entrada al Merval en {Merval_total.index[i]}')
+            operaciones += 1
+    elif signal == "in":
+        if Merval_total["Merval_dlr"][i] < Merval_total["Media200"][i]:
+            signal = "out"
+            strategy_return.append(Merval_total["Media200"][i] / Merval_total["Merval_dlr"][i-1] -1)
+            print(f'Salida del Merval en {Merval_total.index[i]}')
+            operaciones += 1
+        else:
+            strategy_return.append(Merval_total["Merval_dlr"][i] / Merval_total["Merval_dlr"][i-1] -1)
+
+Merval_total["strategy_ret"] = strategy_return
+Merval_total["cum_return"] = (1+Merval_total["strategy_ret"]).cumprod()
+Merval_total["buy_hold_ret"] = (1+Merval_total["return"]).cumprod()
+
+#Grafico comparativo
+plt.title("$ 1 invertido en Merval vs Estrategia", fontweight="bold")
+plt.plot(Merval_total["cum_return"], c="orange", label="Estrategia")
+plt.plot(Merval_total["buy_hold_ret"], c="b", label="Comprar y mantener")
+plt.legend()
+plt.show()
+
+#==============================================================================
+# Estrategia con venta al cierre de la rueda
+# La diferencia con el anterior se ve en línea 88 vs 54
+#==============================================================================
+strategy_return = []
+signal = "out"
+operaciones = 0
+for i in range(len(Merval_total)):
+    if signal == "out":
+        strategy_return.append(0)
+        if Merval_total["Merval_dlr"][i] >= Merval_total["Media200"][i]:
+            signal = "in"
+            print(f'Entrada al Merval en {Merval_total.index[i]}')
+            operaciones += 1
+    elif signal == "in":
+        if Merval_total["Merval_dlr"][i] < Merval_total["Media200"][i]:
+            signal = "out"
+            strategy_return.append(Merval_total["Merval_dlr"][i] / Merval_total["Merval_dlr"][i-1] -1)
+            print(f'Salida del Merval en {Merval_total.index[i]}')
+            operaciones += 1
+        else:
+            strategy_return.append(Merval_total["Merval_dlr"][i] / Merval_total["Merval_dlr"][i-1] -1)
+
+Merval_total["strategy_ret"] = strategy_return
+Merval_total["cum_return"] = (1+Merval_total["strategy_ret"]).cumprod()
+Merval_total["buy_hold_ret"] = (1+Merval_total["return"]).cumprod()
+
+#Grafico comparativo
+plt.title("$ 1 invertido en Merval vs Estrategia", fontweight="bold")
+plt.plot(Merval_total["cum_return"], c="orange", label="Estrategia")
+plt.plot(Merval_total["buy_hold_ret"], c="b", label="Comprar y mantener")
+plt.legend()
+plt.show()
